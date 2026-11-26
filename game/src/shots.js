@@ -8,9 +8,9 @@ import { EV } from './world.js';
 import { SCREENS } from './render.js';
 
 const START_SECONDS = 6;
-const PLAY_LIMIT_SECONDS = 40;
+const PLAY_LIMIT_SECONDS = 60;
 const RING_LIMIT_SECONDS = 60;
-const END_LIMIT_SECONDS = 90;
+const END_LIMIT_SECONDS = 240;
 
 // One frame of autopilot steering, in the shape world.advance() takes.
 function autopilot(state) {
@@ -60,10 +60,9 @@ export function stageScene(name, world) {
   }
 
   if (name === 'end') {
-    // A shortened mission so the run ends while the autopilot is still
-    // flying — long enough to clear a ring or two first, so the report
-    // card has a score worth reading.
-    state.clock = 26;
+    // Fly the whole mission on autopilot: with seed 1 it threads ring after
+    // ring and sweeps the early-finish line, so the report card shows a
+    // won run — every ring cleared, time bonus banked, score past target.
     for (let i = 0; i < END_LIMIT_SECONDS / TICK; i += 1) {
       if (world.advance(TICK, autopilot(state), false) & EV.OVER) break;
     }
@@ -81,13 +80,15 @@ export function stageScene(name, world) {
     return { screen: SCREENS.PLAY, best: state.points };
   }
 
-  // play: stop mid-flight with the next ring visible ahead of the plane.
+  // play: stop mid-action — the next ring close ahead, a combo or a fresh
+  // pickup note on screen, a storm cloud in frame for stakes.
   for (let i = 0; i < PLAY_LIMIT_SECONDS / TICK; i += 1) {
     if (world.advance(TICK, autopilot(state), false) & EV.OVER) break;
     const ahead = state.ringSet.some(
-      (ring) => !ring.judged && ring.x > CRAFT.x + 260 && ring.x < 1150,
+      (ring) => !ring.judged && ring.x > CRAFT.x + 320 && ring.x < 1080,
     );
-    if (state.t > 9 && ahead && state.stormSet.length > 0) break;
+    const lively = state.combo >= 2 || state.noteT > 0.4;
+    if (state.t > 14 && ahead && lively && state.stormSet.length > 0) break;
   }
   return { screen: SCREENS.PLAY, best: state.points };
 }

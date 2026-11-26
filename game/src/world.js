@@ -144,7 +144,7 @@ export function makeWorld(rng) {
     state.combo = 0;
     state.craft.shield = SHIELD_SECONDS;
     state.shake = 0.55;
-    note(splashed ? 'Nyebur! Badan pesawat penyok.' : 'Kena awan badai! Badan pesawat penyok.');
+    note(splashed ? 'Splash! The airframe is dented.' : 'Storm cloud hit! Airframe dented.');
     if (state.hearts <= 0) return finish(false, 'hearts', ev | EV.HIT);
     return ev | EV.HIT;
   }
@@ -206,7 +206,7 @@ export function makeWorld(rng) {
     state.fuel = Math.max(0, state.fuel - burn * dt);
     if (state.fuel <= 0 && !craft.gliding) {
       craft.gliding = true;
-      note('Bensin habis! Meluncur turun…');
+      note('Out of fuel! Gliding down…');
     }
     state.clock -= dt;
     if (state.clock <= 0) {
@@ -306,14 +306,14 @@ export function makeWorld(rng) {
         state.points += earned;
         ev |= EV.RING | (perfect ? EV.PERFECT : 0);
         note(perfect
-          ? `Sempurna! Gerbang ${state.ringsDone} +${earned}`
-          : `Gerbang ${state.ringsDone} lolos! +${earned}`);
+          ? `Perfect! Ring ${state.ringsDone} +${earned}`
+          : `Ring ${state.ringsDone} cleared! +${earned}`);
         if (state.ringsDone >= RINGS_EARLY) return finish(true, 'rings', ev);
       } else {
         state.ringsMissed += 1;
         state.combo = 0;
         ev |= EV.MISSED;
-        note('Gerbang terlewat!');
+        note('Ring missed!');
       }
     }
     return ev;
@@ -333,7 +333,7 @@ export function makeWorld(rng) {
       state.starsGot += 1;
       state.points += POINTS.star;
       ev |= EV.STAR;
-      note(`Bintang! +${POINTS.star}`);
+      note(`Star! +${POINTS.star}`);
     }
     for (let i = state.canSet.length - 1; i >= 0; i -= 1) {
       if (!touches(state.canSet[i])) continue;
@@ -343,7 +343,7 @@ export function makeWorld(rng) {
       if (craft.gliding && state.fuel > 0) craft.gliding = false;
       state.points += POINTS.fuel;
       ev |= EV.FUEL;
-      note(`Bensin +${TANK.can}!`);
+      note(`Fuel +${TANK.can}!`);
     }
     return ev;
   }

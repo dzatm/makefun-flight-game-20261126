@@ -95,7 +95,7 @@ function runGame() {
     world.reset();
     accumulator = 0;
     screen = SCREENS.PLAY;
-    announce('Terbang! Lewati gerbang, ambil bintang dan bensin, hindari badai.');
+    announce('Airborne! Clear the rings, grab stars and fuel, dodge the storms.');
   }
 
   function endGame() {
@@ -104,27 +104,27 @@ function runGame() {
       best = world.state.points;
       saveBest(best);
     }
-    announce(`Misi selesai. Skor ${world.state.points}. Terbaik ${best}.`);
+    announce(`Mission over. Score ${world.state.points}. Best ${best}.`);
   }
 
   function stepPlay() {
     const taps = input.taps();
     if (taps & TAP_MUTE) {
       const muted = chimes.flipMute();
-      announce(muted ? 'Suara mati.' : 'Suara hidup.');
+      announce(muted ? 'Sound off.' : 'Sound on.');
     }
     if (taps & TAP_PAUSE) {
       screen = SCREENS.PAUSED;
-      announce('Jeda.');
+      announce('Paused.');
       return;
     }
     const ev = world.advance(TICK, input.steer(), false);
     soundFor(ev);
     if (ev & EV.OVER) endGame();
     else if (ev & EV.HIT) {
-      announce(`Kena badai! ${world.state.hearts} hati tersisa.`);
+      announce(`Storm hit! ${world.state.hearts} hearts left.`);
     } else if (ev & EV.RING) {
-      announce(`Gerbang ${world.state.ringsDone} lolos! Skor ${world.state.points}.`);
+      announce(`Ring ${world.state.ringsDone} cleared! Score ${world.state.points}.`);
     }
   }
 
@@ -132,7 +132,7 @@ function runGame() {
     const taps = input.taps();
     if (taps & TAP_MUTE) {
       const muted = chimes.flipMute();
-      announce(muted ? 'Suara mati.' : 'Suara hidup.');
+      announce(muted ? 'Sound off.' : 'Sound on.');
     }
     const clicked = input.tapped();
     if ((clicked || (taps & TAP_START)) && (screen === SCREENS.TITLE || screen === SCREENS.OVER)) {
@@ -141,10 +141,10 @@ function runGame() {
     }
     if (taps & TAP_PAUSE && screen === SCREENS.PLAY) {
       screen = SCREENS.PAUSED;
-      announce('Jeda.');
+      announce('Paused.');
     } else if (taps & (TAP_PAUSE | TAP_START) && screen === SCREENS.PAUSED) {
       screen = SCREENS.PLAY;
-      announce('Lanjut terbang.');
+      announce('Flying again.');
     }
   }
 
@@ -177,12 +177,12 @@ function runGame() {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && screen === SCREENS.PLAY) {
       screen = SCREENS.PAUSED;
-      announce('Jeda.');
+      announce('Paused.');
     }
   });
 
   world.reset();
-  announce('Sky Courier, Terbang Nusantara. Tekan Spasi atau klik untuk lepas landas.');
+  announce('Sky Courier, Terbang Nusantara. Press Space or click to take off.');
   requestAnimationFrame(frame);
 }
 

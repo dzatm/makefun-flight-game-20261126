@@ -62,6 +62,14 @@ function puff(ctx, x, y, s, colour) {
 function star(ctx, x, y, r, rotation) {
   ctx.save();
   ctx.translate(x, y);
+  // A soft glow so pickups read at a glance against the bright sky.
+  const halo = ctx.createRadialGradient(0, 0, 2, 0, 0, r * 2.1);
+  halo.addColorStop(0, 'rgba(255,228,94,0.5)');
+  halo.addColorStop(1, 'rgba(255,228,94,0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 2.1, 0, Math.PI * 2);
+  ctx.fill();
   ctx.rotate(rotation);
   ctx.fillStyle = INK.starGold;
   ctx.strokeStyle = '#d9a406';
@@ -134,6 +142,27 @@ function ring(ctx, item, t, isNext) {
   ctx.translate(item.x, item.y);
   const pulse = isNext ? 1 + Math.sin(t * 5) * 0.05 : 1;
   ctx.scale(pulse, pulse);
+  if (isNext && !item.judged) {
+    // A breathing halo of light around the target ring, plus four sparkles
+    // orbiting it, so the eye lands on the goal before anything else.
+    const glow = ctx.createRadialGradient(0, 0, item.r * 0.6, 0, 0, item.r * 1.9);
+    glow.addColorStop(0, 'rgba(255,210,63,0)');
+    glow.addColorStop(0.55, 'rgba(255,210,63,0.28)');
+    glow.addColorStop(1, 'rgba(255,210,63,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, 0, item.r * 1.9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = INK.ringPale;
+    for (let i = 0; i < 4; i += 1) {
+      const a = t * 2.4 + (i * Math.PI) / 2;
+      const sx = Math.cos(a) * (item.r + 13);
+      const sy = Math.sin(a) * (item.r + 13);
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
   ctx.strokeStyle = item.judged ? 'rgba(255,210,63,0.35)' : INK.ringGold;
   ctx.lineWidth = 9;
   ctx.beginPath();
@@ -190,6 +219,34 @@ function island(ctx, item) {
       ctx.stroke();
     }
   }
+  // A mail hut with a thatched roof between the palms — every island is a
+  // stop on the route, and the little red flag says so.
+  const hutX = cx - 4;
+  const hutY = baseY - 16;
+  ctx.fillStyle = '#a4713f';
+  ctx.fillRect(hutX - 13, hutY - 13, 26, 14);
+  ctx.fillStyle = '#7a4a21';
+  ctx.beginPath();
+  ctx.moveTo(hutX - 18, hutY - 12);
+  ctx.lineTo(hutX, hutY - 27);
+  ctx.lineTo(hutX + 18, hutY - 12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#3a2a1a';
+  ctx.fillRect(hutX - 4, hutY - 9, 8, 10);
+  ctx.strokeStyle = '#5d3c1c';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(hutX + 14, hutY - 12);
+  ctx.lineTo(hutX + 14, hutY - 30);
+  ctx.stroke();
+  ctx.fillStyle = INK.planeRed;
+  ctx.beginPath();
+  ctx.moveTo(hutX + 14, hutY - 30);
+  ctx.lineTo(hutX + 26, hutY - 26);
+  ctx.lineTo(hutX + 14, hutY - 22);
+  ctx.closePath();
+  ctx.fill();
   label(ctx, item.isle.label, cx, baseY + 26, 12, 'rgba(255,246,227,0.75)', 'center', 600);
 }
 
@@ -271,6 +328,20 @@ function plane(ctx, state, t) {
       ctx.fill();
     }
   }
+  // Speed streaks streaming past the wingtips at full throttle.
+  if (craft.speed > CRAFT.cruise + 60) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i += 1) {
+      const ly = -16 + i * 10;
+      const lx = -56 - ((t * 320 + i * 47) % 90);
+      const len = 16 + (craft.speed - CRAFT.cruise) * 0.06;
+      ctx.beginPath();
+      ctx.moveTo(lx, ly);
+      ctx.lineTo(lx - len, ly);
+      ctx.stroke();
+    }
+  }
   ctx.restore();
 }
 
@@ -282,18 +353,54 @@ function backdrop(ctx, state) {
   gradient.addColorStop(1, INK.skyGlow);
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, VIEW.w, VIEW.h);
-  // The low sun and its halo.
+  // The sun sinks toward the sea as the mission clock runs down, and its
+  // halo swells — the sky itself is the timer.
+  const dayFrac = Math.max(0, Math.min(1, 1 - state.clock / RUN_SECONDS));
+  const sunY = 150 + dayFrac * 190;
+  const haloR = 92 + dayFrac * 46;
   ctx.fillStyle = 'rgba(255,217,122,0.25)';
   ctx.beginPath();
-  ctx.arc(1060, 150, 92, 0, Math.PI * 2);
+  ctx.arc(1060, sunY, haloR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,180,90,0.18)';
+  ctx.beginPath();
+  ctx.arc(1060, sunY, haloR * 1.55, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = INK.sunCore;
   ctx.beginPath();
-  ctx.arc(1060, 150, 52, 0, Math.PI * 2);
+  ctx.arc(1060, sunY, 52, 0, Math.PI * 2);
   ctx.fill();
+  // A far ridge of hazy island silhouettes on the horizon, crawling by at
+  // a fifth of the flight speed for depth.
+  ctx.fillStyle = 'rgba(38,64,105,0.45)';
+  const ridgeSpan = 520;
+  for (let i = -1; i < 4; i += 1) {
+    const rx = i * ridgeSpan - ((state.flown * 0.18) % ridgeSpan);
+    const peak = 60 + ((i * 37) % 40 + 40) % 40;
+    ctx.beginPath();
+    ctx.moveTo(rx, CRAFT.sea + 20);
+    ctx.quadraticCurveTo(rx + ridgeSpan * 0.3, CRAFT.sea + 20 - peak, rx + ridgeSpan * 0.55, CRAFT.sea + 20 - peak * 0.55);
+    ctx.quadraticCurveTo(rx + ridgeSpan * 0.8, CRAFT.sea + 20 - peak * 0.85, rx + ridgeSpan, CRAFT.sea + 20);
+    ctx.closePath();
+    ctx.fill();
+  }
   // Drifting clouds behind everything.
   for (const cloud of state.cloudSet) {
     puff(ctx, cloud.x, cloud.y, cloud.s, 'rgba(255,255,255,0.85)');
+  }
+  // A loose skein of birds crossing the sky, wings flapping on the clock.
+  ctx.strokeStyle = 'rgba(16,28,51,0.55)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 5; i += 1) {
+    const span = VIEW.w + 300;
+    const bx = span - (((state.flown * 0.55 + i * 260) % span) + span) % span - 150;
+    const by = 120 + (i % 3) * 36 + Math.sin(state.t * 0.9 + i * 1.7) * 8;
+    const flap = Math.sin(state.t * 7 + i * 1.3) * 5;
+    ctx.beginPath();
+    ctx.moveTo(bx - 11, by + flap);
+    ctx.quadraticCurveTo(bx - 4, by - 3, bx, by);
+    ctx.quadraticCurveTo(bx + 4, by - 3, bx + 11, by + flap);
+    ctx.stroke();
   }
   // The sea, two bands deep, with little wave strokes sliding by.
   ctx.fillStyle = INK.seaTop;
@@ -311,6 +418,18 @@ function backdrop(ctx, state) {
     ctx.quadraticCurveTo(wx + 16, wy - 5, wx + 32, wy);
     ctx.stroke();
   }
+  // Sun glitter: short bright dashes twinkling under the sun's column.
+  ctx.strokeStyle = 'rgba(255,226,150,0.5)';
+  ctx.lineWidth = 2.5;
+  for (let i = 0; i < 7; i += 1) {
+    const gx = 980 + ((i * 61 + Math.floor(state.flown * 0.9)) % 190);
+    const gy = CRAFT.sea + 30 + (i % 4) * 14;
+    const glint = 8 + 6 * Math.abs(Math.sin(state.t * 2.2 + i * 1.9));
+    ctx.beginPath();
+    ctx.moveTo(gx - glint / 2, gy);
+    ctx.lineTo(gx + glint / 2, gy);
+    ctx.stroke();
+  }
   for (const item of state.isleSet) island(ctx, item);
 }
 
@@ -320,21 +439,21 @@ function instruments(ctx, state) {
   ctx.fill();
   const urgent = state.clock <= 30;
   label(ctx, `⏱ ${clockText(state.clock)}`, 32, 44, 30, urgent ? INK.alarm : INK.paper);
-  label(ctx, `Skor ${state.points}`, 32, 78, 17, INK.paper);
+  label(ctx, `Score ${state.points}`, 32, 78, 17, INK.paper);
   label(ctx, `Target ${GOAL_SCORE}`, 190, 78, 14, 'rgba(255,246,227,0.7)');
 
-  label(ctx, `Gerbang ${state.ringsDone}/${RINGS_WIN}`, 380, 44, 22, INK.amber);
-  label(ctx, `Bintang ${state.starsGot}`, 380, 78, 14, 'rgba(255,246,227,0.85)');
+  label(ctx, `Rings ${state.ringsDone}/${RINGS_WIN}`, 380, 44, 22, INK.amber);
+  label(ctx, `Stars ${state.starsGot}`, 380, 78, 14, 'rgba(255,246,227,0.85)');
   for (let i = 0; i < MAX_HEARTS; i += 1) heart(ctx, 560 + i * 30, 44, 11, i < state.hearts);
   if (state.combo >= 2) {
     ctx.fillStyle = INK.canOrange;
     rounded(ctx, 640, 28, 96, 32, 16);
     ctx.fill();
-    label(ctx, `KOMBO x${state.combo}`, 688, 45, 14, '#ffffff', 'center');
+    label(ctx, `COMBO x${state.combo}`, 688, 45, 14, '#ffffff', 'center');
   }
 
   // Fuel gauge.
-  label(ctx, 'BENSIN', 790, 32, 13, 'rgba(255,246,227,0.8)');
+  label(ctx, 'FUEL', 790, 32, 13, 'rgba(255,246,227,0.8)');
   ctx.fillStyle = 'rgba(255,246,227,0.2)';
   rounded(ctx, 790, 44, 150, 16, 8);
   ctx.fill();
@@ -342,15 +461,15 @@ function instruments(ctx, state) {
   ctx.fillStyle = fuelFrac < 0.22 ? INK.alarm : fuelFrac < 0.45 ? INK.canOrange : INK.fine;
   rounded(ctx, 790, 44, 150 * fuelFrac, 16, 8);
   ctx.fill();
-  if (state.craft.gliding) label(ctx, 'MELUNCUR!', 880, 78, 14, INK.alarm, 'center');
+  if (state.craft.gliding) label(ctx, 'GLIDING!', 880, 78, 14, INK.alarm, 'center');
 
   // Speed, altitude and distance readouts.
   const kmh = Math.round(state.craft.speed * 0.62);
   const metres = Math.max(0, Math.round((CRAFT.sea - state.craft.y) * 3));
-  label(ctx, `${kmh} km/j`, 1010, 40, 20, INK.paper, 'center');
-  label(ctx, `tinggi ${metres} m`, 1010, 72, 14, 'rgba(255,246,227,0.85)', 'center');
+  label(ctx, `${kmh} km/h`, 1010, 40, 20, INK.paper, 'center');
+  label(ctx, `alt ${metres} m`, 1010, 72, 14, 'rgba(255,246,227,0.85)', 'center');
   label(ctx, `${(state.flown / 1000).toFixed(1)} km`, 1170, 40, 20, INK.paper, 'center');
-  label(ctx, 'jarak tempuh', 1170, 72, 14, 'rgba(255,246,227,0.85)', 'center');
+  label(ctx, 'distance', 1170, 72, 14, 'rgba(255,246,227,0.85)', 'center');
 
   // An arrow at the right edge points at the next ring's height.
   const next = state.ringSet.find((item) => !item.judged && item.x > CRAFT.x);
@@ -363,7 +482,7 @@ function instruments(ctx, state) {
     ctx.lineTo(1226, ay + 11);
     ctx.closePath();
     ctx.fill();
-    label(ctx, 'gerbang', 1239, ay - 22, 11, INK.amber, 'center');
+    label(ctx, 'ring', 1239, ay - 22, 11, INK.amber, 'center');
   }
 }
 
@@ -421,45 +540,45 @@ export function makePainter(canvas) {
 
     if (screen === SCREENS.TITLE) {
       card(ctx, [
-        'Antar paket pos keliling Nusantara sebelum matahari tenggelam!',
+        'Deliver the mail across the archipelago before sunset!',
         '',
-        '↑ ↓ / W S — naik & turun    ← → / A D — pelan & cepat',
-        'Spasi (tahan) — ngebut    Mouse — arahkan pesawat',
-        'P — jeda    M — suara',
+        '↑ ↓ / W S — climb & dive    ← → / A D — slower & faster',
+        'Hold Space — boost    Mouse — steer the plane',
+        'P — pause    M — sound',
         '',
-        `Lewati ${RINGS_WIN} gerbang dalam ${Math.floor(RUN_SECONDS / 60)}½ menit untuk menang.`,
-        'Ambil bintang & bensin. Hindari awan badai dan laut!',
-        `Skor terbaik: ${best}`,
+        `Clear ${RINGS_WIN} rings in ${Math.floor(RUN_SECONDS / 60)}½ minutes to win.`,
+        'Grab stars & fuel. Dodge storm clouds and the sea!',
+        `Best score: ${best}`,
         '',
-        'Tekan SPASI atau klik untuk lepas landas!',
+        'Press SPACE or click to take off!',
       ], 'SKY COURIER', INK.canOrange);
       label(ctx, 'TERBANG NUSANTARA', 640, 208, 20, '#6b5a44', 'center', 700);
     } else if (screen === SCREENS.PAUSED) {
       card(ctx, [
-        'Mesin dimatikan sebentar — paket tetap aman di sayap.',
+        'Engines off for a moment — the mail is safe on the wing.',
         '',
-        'Tekan P atau Spasi untuk lanjut terbang.',
-      ], 'JEDA', '#4a90d9');
+        'Press P or Space to keep flying.',
+      ], 'PAUSED', '#4a90d9');
     } else if (screen === SCREENS.OVER) {
       const won = state.won;
       const reason = state.reason === 'hearts'
-        ? 'Badan pesawat rusak kena badai.'
+        ? 'The airframe gave out in the storm.'
         : state.reason === 'fuel'
-          ? 'Bensin habis di tengah laut.'
+          ? 'Ran dry over the open sea.'
           : state.reason === 'rings'
-            ? 'Semua gerbang lolos — mendarat lebih awal!'
-            : 'Waktu habis, matahari sudah tenggelam.';
+            ? 'Every ring cleared — landed early!'
+            : "Time's up — the sun has set.";
       card(ctx, [
         reason,
         '',
-        `Skor akhir: ${state.points}   (target ${GOAL_SCORE})`,
-        `Gerbang lolos: ${state.ringsDone}    Terlewat: ${state.ringsMissed}`,
-        `Bintang: ${state.starsGot}    Bensin diambil: ${state.cansGot}`,
-        `Kombo terbaik: x${state.topCombo}    Jarak: ${(state.flown / 1000).toFixed(1)} km`,
-        `Skor terbaik: ${best}`,
+        `Final score: ${state.points}   (target ${GOAL_SCORE})`,
+        `Rings cleared: ${state.ringsDone}    Missed: ${state.ringsMissed}`,
+        `Stars: ${state.starsGot}    Fuel cans: ${state.cansGot}`,
+        `Best combo: x${state.topCombo}    Distance: ${(state.flown / 1000).toFixed(1)} km`,
+        `Best score: ${best}`,
         '',
-        'Tekan SPASI atau klik untuk terbang lagi!',
-      ], won ? 'MISI BERHASIL!' : 'MISI SELESAI', won ? '#2f9e44' : INK.canOrange);
+        'Press SPACE or click to fly again!',
+      ], won ? 'MISSION COMPLETE!' : 'MISSION OVER', won ? '#2f9e44' : INK.canOrange);
     }
   }
 
