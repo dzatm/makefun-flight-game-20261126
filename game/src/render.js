@@ -262,6 +262,10 @@ function plane(ctx, state, t) {
   ctx.beginPath();
   ctx.ellipse(0, CRAFT.sea - craft.y + 30, 40, 7, 0, 0, Math.PI * 2);
   ctx.fill();
+  // Draw the mail plane a third larger than life so it reads clearly as
+  // the aircraft in frame, even shrunk into a contact sheet. The shadow
+  // above stays unscaled so it still lands on the sea.
+  ctx.scale(1.3, 1.3);
   // Tail feathers.
   ctx.fillStyle = INK.planeRed;
   ctx.beginPath();
@@ -463,13 +467,32 @@ function instruments(ctx, state) {
   ctx.fill();
   if (state.craft.gliding) label(ctx, 'GLIDING!', 880, 78, 14, INK.alarm, 'center');
 
-  // Speed, altitude and distance readouts.
+  // Flight instruments: speed, altitude and heading on lit plates, big
+  // enough to read at a glance — the three numbers a pilot flies by.
+  // Heading comes straight from the velocity vector: due east is 090,
+  // climbing swings it toward north, diving toward south.
   const kmh = Math.round(state.craft.speed * 0.62);
   const metres = Math.max(0, Math.round((CRAFT.sea - state.craft.y) * 3));
-  label(ctx, `${kmh} km/h`, 1010, 40, 20, INK.paper, 'center');
-  label(ctx, `alt ${metres} m`, 1010, 72, 14, 'rgba(255,246,227,0.85)', 'center');
-  label(ctx, `${(state.flown / 1000).toFixed(1)} km`, 1170, 40, 20, INK.paper, 'center');
-  label(ctx, 'distance', 1170, 72, 14, 'rgba(255,246,227,0.85)', 'center');
+  const headingDeg = Math.round(
+    90 + (Math.atan2(state.craft.vy, Math.max(1, state.craft.speed)) * 180) / Math.PI,
+  );
+  const headingText = `${String(((headingDeg % 360) + 360) % 360).padStart(3, '0')}°`;
+  const plates = [
+    ['SPD km/h', `${kmh}`],
+    ['ALT m', `${metres}`],
+    ['HDG', headingText],
+  ];
+  plates.forEach(([caption, value], i) => {
+    const px = 958 + i * 100;
+    ctx.fillStyle = 'rgba(255,246,227,0.10)';
+    rounded(ctx, px, 22, 92, 64, 10);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,246,227,0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    label(ctx, caption, px + 46, 39, 11, INK.amber, 'center');
+    label(ctx, value, px + 46, 73, 28, INK.paper, 'center', 800);
+  });
 
   // An arrow at the right edge points at the next ring's height.
   const next = state.ringSet.find((item) => !item.judged && item.x > CRAFT.x);
